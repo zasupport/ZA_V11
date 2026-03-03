@@ -3,6 +3,8 @@ services:
     name: za-health-check-main
     runtime: node
     plan: free
+    buildCommand: npm install
+    startCommand: node index.js
     envVars:
       - key: DATABASE_URL
         fromDatabase:
