@@ -27,8 +27,12 @@ initDb();
 
 app.use(express.json());
 
-// NEW: Route to view the last 10 entries
+// SECURE View Route: Now requires the same token as Ingest
 app.get('/api/v11/view', async (req, res) => {
+    const token = req.headers.authorization;
+    if (token !== `Bearer ${process.env.V11_AUTH_TOKEN}`) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
     try {
         const result = await pool.query('SELECT * FROM diagnostics ORDER BY created_at DESC LIMIT 10');
         res.json(result.rows);
