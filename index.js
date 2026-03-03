@@ -27,12 +27,10 @@ initDb();
 
 app.use(express.json());
 
-// SECURE View Route: Now requires the same token as Ingest
+// Secure View Route
 app.get('/api/v11/view', async (req, res) => {
     const token = req.headers.authorization;
-    if (token !== `Bearer ${process.env.V11_AUTH_TOKEN}`) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
+    if (token !== `Bearer ${process.env.V11_AUTH_TOKEN}`) return res.status(401).json({ error: 'Unauthorized' });
     try {
         const result = await pool.query('SELECT * FROM diagnostics ORDER BY created_at DESC LIMIT 10');
         res.json(result.rows);
@@ -41,12 +39,22 @@ app.get('/api/v11/view', async (req, res) => {
     }
 });
 
+// NEW: Secure Clear Route
+app.delete('/api/v11/clear', async (req, res) => {
+    const token = req.headers.authorization;
+    if (token !== `Bearer ${process.env.V11_AUTH_TOKEN}`) return res.status(401).json({ error: 'Unauthorized' });
+    try {
+        await pool.query('DELETE FROM diagnostics');
+        res.json({ status: 'success', message: 'Database table cleared' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to clear database' });
+    }
+});
+
 app.post('/api/v11/ingest', async (req, res) => {
     const { v11_metadata } = req.body;
     const token = req.headers.authorization;
-    if (token !== `Bearer ${process.env.V11_AUTH_TOKEN}`) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
+    if (token !== `Bearer ${process.env.V11_AUTH_TOKEN}`) return res.status(401).json({ error: 'Unauthorized' });
     try {
         await pool.query(
             'INSERT INTO diagnostics (serial_number, data) VALUES ($1, $2)',
