@@ -12,3 +12,7 @@ services:
           property: connectionString
       - key: V11_AUTH_TOKEN
         generateValue: true
+
+databases:
+  - name: za-db
+    plan: free
