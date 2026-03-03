@@ -1,11 +1,34 @@
 const express = require('express');
+const { Pool } = require('pg');
 const app = express();
 const port = process.env.PORT || 3000;
 
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
+
+// AUTO-BUILD FUNCTION: This creates the table if it's missing
+const initDb = async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS diagnostics (
+                id SERIAL PRIMARY KEY,
+                serial_number TEXT,
+                data JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        console.log("Database table is ready.");
+    } catch (err) {
+        console.error("Database init failed:", err);
+    }
+};
+initDb();
+
 app.use(express.json());
 
-// The V11 Ingest Endpoint
-app.post('/api/v11/ingest', (req, res) => {
+app.post('/api/v11/ingest', async (req, res) => {
     const { v11_metadata } = req.body;
     const token = req.headers.authorization;
 
@@ -13,10 +36,17 @@ app.post('/api/v11/ingest', (req, res) => {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    console.log(`Diagnostic received from Serial: ${v11_metadata.serial_number}`);
-    res.status(200).json({ status: 'success', message: 'Data logged to V11' });
+    try {
+        await pool.query(
+            'INSERT INTO diagnostics (serial_number, data) VALUES ($1, $2)',
+            [v11_metadata.serial_number, req.body]
+        );
+        res.status(200).json({ status: 'success', message: 'Data saved to Database' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Database error' });
+    }
 });
 
-app.get('/', (req, res) => res.send('ZA V11 Health Check Server Active'));
-
+app.get('/', (req, res) => res.send('ZA V11 Database Server Active'));
 app.listen(port, () => console.log(`Server running on port ${port}`));
